@@ -12,6 +12,8 @@
 
 # install.packages("tidyr")
 
+# install.packages("sf")
+
 
 library(data.table)
 library(dplyr)
@@ -21,6 +23,8 @@ library(rvest)
 library(purrr)
 
 library(tidyr)
+
+library(sf)
 
 
 
@@ -35,7 +39,7 @@ library(tidyr)
 
 datos_soria.lst <- read_file_ADRH('Soria', 2022)
 
-## Hacer una copia para no machacar
+## Hacer una copia de seguridad para no machacar
 datos_soria_copia.lst <- datos_soria.lst
 
 #######datos_soria.lst <- datos_soria_copia.lst
@@ -61,7 +65,14 @@ variables_pivote_ADRH.lst <- c("Indicadores de renta media y mediana"
 ### Tratamiento de los datos del df, nos quedamos con lo que necesitamos ###
 
 ## Defino una lista vacia que contendrá los datos finales
+## La idea es pivotar la tabla, es decir, en lugar de tener una columna con los 
+## nombres de las variables y valores para todas esas variables en otro campo, obtener
+## una columna para cada variable con sus valores correspondientes
+
 datos_soria_pivot.lst <- list()
+
+
+## Itero sobre los df de la lista que he descargado: hago en todos lo mismo 
 
 for(i in 1:length(variables_ADRH.lst)){
   
@@ -84,6 +95,7 @@ for(i in 1:length(variables_ADRH.lst)){
   datos_soria_pivot.lst[[ variables_ADRH.lst[i] ]]<- aux.df %>%
     pivot_wider(names_from = variables_pivote_ADRH.lst[i], values_from = Total)
   
+  ## Defino las variables que utilizare para la integracion del tablón final
   datos_soria_pivot.lst[[ variables_ADRH.lst[i] ]] <-datos_soria_pivot.lst[[ variables_ADRH.lst[i] ]] %>%
     mutate(CO_SEC = substr(Secciones, 8, 10),
            CO_DIS = substr(Distritos, 6, 7),
@@ -95,54 +107,6 @@ for(i in 1:length(variables_ADRH.lst)){
 }
 
 
-
-
-## Probamos con la primera variable:
-datos_soria_v1.df <- datos_soria.lst$`Indicadores de renta media y mediana`
-
-
-## Elimino las columnas que no necesito
-## En este caso el campo Periodo
-datos_soria_v1.df <- datos_soria_v1.df %>%
-  select(-"Periodo")
-
-  
-  
-## Borro todas las filas para las que alguna de las columnas: 
-##   distritos o secciones esten vacias
-datos_soria_v1.df <- datos_soria_v1.df %>%
-  filter(!(Secciones == "" | is.na(Secciones) |
-             Distritos == "" | is.na(Distritos)))
-
-
-## Guardo los nombres de las distintas variables que tenemos en esta lista:
-variables_v1.lst <- unique(datos_soria_v1.df$`Indicadores de renta media y mediana`)
-
-
-## Traspongo/pivoto los valores de la variable 
-datos_soria_v1_pivot.df <- datos_soria_v1.df %>%
-  pivot_wider(names_from = 'Indicadores de renta media y mediana', values_from = Total)
-
-
-###  Creación de nuevas variables para facilitar la integración de ficheros  ###
-
-## Creo la variable código de sección (facilitarán los cruces de datos)
-
-datos_soria_v1_pivot.df <- datos_soria_v1_pivot.df %>%
-  mutate(CO_SEC = substr(Secciones, 8, 10),
-         CO_DIS = substr(Distritos, 6, 7),
-         CO_MUN = substr(Municipios, 3, 5),
-         CO_PRO = substr(Municipios, 1, 2),
-         NOM_MUN = substring(Municipios, 7),
-         co_seccion = substr(Secciones, 1, 10))
-
-
-## Nos salen 217
-
-
-
-
-
 # Datos Censo -------------------------------------------------------------
 
 ## EXTRACCION DATOS DEL CENSO ---------------------------------------------
@@ -151,7 +115,7 @@ datos_soria_v1_pivot.df <- datos_soria_v1_pivot.df %>%
 censo_soria.lst <- read_file_censo('Soria', 2022)
 
 
-## Hacer una copia para no machacar
+## Hacer una copia de seguridad para no machacar
 censo_soria_copia.lst <- censo_soria.lst
 
 #######censo_soria.lst <- censo_soria_copia.lst
@@ -193,6 +157,31 @@ for(i in 1:length(variables_CENSO.lst)){
            co_seccion = substr(Secciones, 1, 10))
   
 }
+
+
+
+
+# Informacion Secciones Censales (base)----------------------------------------
+
+
+## LECTURA ARCHIVO .shp -------------------------------------------------------
+
+## Ruta del archivo .shp
+ruta <- '/Users/isabelconesahernandez/Documents/TFM/codigo-TFM/seccionado_2022/SECC_CE_20220101.shp'
+
+
+## Lectura del archivo
+datos_mapa <- st_read(ruta)
+
+## Filtro por la provincia de Soria
+mapa_soria <- datos_mapa %>%
+  filter(CPRO == "42") 
+
+## Comprobamos el número de secciones censales que tenemos:
+nrow(mapa_soria)
+
+## Nos salen 216
+
 
 
 
